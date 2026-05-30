@@ -1,0 +1,4 @@
+input_dir: "/content/images"
+output_dir: "/content/augmented_images"
+augmentations_per_image: 5
+device: "cuda"  # or cpu

@@ -1,0 +1,11 @@
+albumentations
+opencv-python
+pillow
+matplotlib
+gradio
+torch
+torchvision
+ftfy
+regex
+tqdm
+transformers
