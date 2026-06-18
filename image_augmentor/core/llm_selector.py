@@ -1,20 +1,28 @@
-from transformers import AutoModelForCausalLM, AutoTokenizer
+import os
+import google.generativeai as genai
 
-# Load LLM (small demo model, replace with your preferred LLM)
-llm_model_name = "NousResearch/Llama-2-7b-hf"  # Example
-tokenizer = AutoTokenizer.from_pretrained(llm_model_name)
-llm = AutoModelForCausalLM.from_pretrained(llm_model_name, device_map="auto")
+_client = None
 
-def llm_suggest_augmentations(class_name, available_ops, top_k=3):
-    prompt = f"""
-    You are an expert image augmentation policy selector.
-    The image belongs to the class: {class_name}.
-    Available augmentations are: {", ".join(available_ops)}.
-    Suggest the {top_k} most suitable augmentations for this class.
-    Only respond with a comma-separated list of augmentation names from the available ones.
-    """
-    inputs = tokenizer(prompt, return_tensors="pt").to(llm.device)
-    outputs = llm.generate(**inputs, max_new_tokens=50)
-    response = tokenizer.decode(outputs[0], skip_special_tokens=True)
-    suggestions = [s.strip() for s in response.split(",") if s.strip() in available_ops][:top_k]
-    return suggestions
+def _get_client():
+    global _client
+    if _client is None:
+        genai.configure(api_key=os.environ["GEMINI_API_KEY"])
+        _client = genai.GenerativeModel("gemini-1.5-flash")
+    return _client
+
+def llm_suggest_augmentations(class_name: str, available_ops: list[str], top_k: int = 3) -> list[str]:
+    prompt = (
+        f"You are an image processing expert.\n"
+        f"Image category: {class_name}\n"
+        f"Available operations: {', '.join(available_ops)}\n"
+        f"Reply with ONLY a comma-separated list of the {top_k} most suitable operations "
+        f"from the available ones. No explanation."
+    )
+    try:
+        model = _get_client()
+        response = model.generate_content(prompt)
+        raw = response.text.strip()
+        picks = [s.strip() for s in raw.split(",") if s.strip() in available_ops]
+        return picks[:top_k] if picks else available_ops[:top_k]  # fallback to first N
+    except Exception:
+        return available_ops[:top_k]  # always return something valid
